@@ -7,29 +7,21 @@ import { pipeline } from 'stream/promises';
 
 const app = express();
 const PORT = 3000;
-
-// Caching example: Cache buffer file contents in memory for efficiency
 let bufferCache: Buffer | null = null;
 
 const fileExists = promisify(fs.exists);
 
-// Async handler for buffer
 app.get('/buffer', async (req: Request, res: Response): Promise<void> => {
   try {
-    // If cache is empty, read file asynchronously
     if (!bufferCache) {
       const filePath = path.join(__dirname, 'file', 'buffer.txt');
-      const exists = await fileExists(filePath);
-
-      if (!exists) {
+      if (!(await fileExists(filePath))) {
         res.status(404).send('File not found');
         return;
       }
-
       const data = await fs.promises.readFile(filePath, 'utf-8');
       bufferCache = Buffer.from(data, 'utf-8');
     }
-
     res.setHeader('Content-Type', 'text/plain');
     res.send(bufferCache);
   } catch (err) {
@@ -38,31 +30,22 @@ app.get('/buffer', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Stream file using streaming API and add transformation on the fly
 app.get('/stream', async (req: Request, res: Response): Promise<void> => {
   try {
     const filePath = path.join(__dirname, 'file', 'stream.txt');
-    const exists = await fileExists(filePath);
-
-    if (!exists) {
+    if (!(await fileExists(filePath))) {
       res.status(404).send('File not found');
       return;
     }
 
     const readableStream = fs.createReadStream(filePath, { encoding: 'utf-8' });
-
-    // Create a Transform stream to manipulate the file content on the fly
     const transformStream = new Transform({
       transform(chunk, encoding, callback) {
-        // Example transformation: Append custom data to each chunk
-        const modifiedChunk = chunk.toString().toUpperCase(); // Modify chunk (example: uppercase)
-        callback(null, modifiedChunk);
+        callback(null, chunk.toString().toUpperCase());
       },
     });
 
     res.setHeader('Content-Type', 'text/plain');
-
-    // Pipe through the transformation stream and then to the response
     await pipeline(readableStream, transformStream, res);
   } catch (err) {
     console.error(err);
@@ -70,13 +53,11 @@ app.get('/stream', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Simulate large streaming without loading into memory
 app.get('/large-stream', (req: Request, res: Response): void => {
   const largeStringStream = new Readable({
     read() {},
   });
 
-  // Generate a large string chunk-by-chunk (simulating large data)
   for (let i = 0; i < 10000; i++) {
     largeStringStream.push(`This is chunk number ${i}\n`);
   }
